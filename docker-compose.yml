@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: demo-postgres
+    environment:
+      POSTGRES_USER: vsncpdba
+      POSTGRES_PASSWORD: Qltkdelql!12
+      POSTGRES_DB: loki_logs
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vsncpdba -d loki_logs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: demo-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/loki_logs
+      SPRING_DATASOURCE_USERNAME: vsncpdba
+      SPRING_DATASOURCE_PASSWORD: Qltkdelql!12
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: demo-frontend
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8080
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data: 
