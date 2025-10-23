@@ -11,7 +11,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "trace-logs-launcher")
+@Table(name = "trace_logs_launcher")
 @Data
 @Builder
 @NoArgsConstructor

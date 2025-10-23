@@ -138,7 +138,7 @@ export default function ErrorLogsPage() {
             </div>
           )}
 
-          {/* Profile 필터 */}
+          {/* Profile 및 App Name 필터 */}
           <div className="mb-4 flex items-center gap-4">
             <label className="font-medium text-gray-700">Profile:</label>
             <select
@@ -153,10 +153,7 @@ export default function ErrorLogsPage() {
               <option value="r-engl">r-engl</option>
               <option value="r-math">r-math</option>
             </select>
-          </div>
 
-          {/* App Name 필터 */}
-          <div className="mb-4 flex items-center gap-4">
             <label className="font-medium text-gray-700">App Name:</label>
             <select
               value={appName}

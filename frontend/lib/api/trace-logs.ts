@@ -11,6 +11,7 @@ export interface TraceLog {
 export interface TraceLogsParams {
   limit?: 100 | 200 | 300 | 1000;
   appName?: string;
+  logType?: string;
 }
 
 export interface TraceLogsRangeParams extends TraceLogsParams {
@@ -23,11 +24,11 @@ export const traceLogsApi = {
    * 최근 로그 조회
    */
   getRecentLogs: async (params: TraceLogsParams = {}): Promise<TraceLog[]> => {
-    const { limit = 100, appName } = params;
+    const { limit = 100, appName, logType } = params;
     const response = await axios.get<TraceLog[]>(
       `${API_BASE_URL}/api/trace-logs-launcher/recent`,
       {
-        params: { limit, appName },
+        params: { limit, appName, logType },
       }
     );
     return response.data;
@@ -39,11 +40,11 @@ export const traceLogsApi = {
   getLogsByDateRange: async (
     params: TraceLogsRangeParams
   ): Promise<TraceLog[]> => {
-    const { startDate, endDate, limit = 100, appName } = params;
+    const { startDate, endDate, limit = 100, appName, logType } = params;
     const response = await axios.get<TraceLog[]>(
       `${API_BASE_URL}/api/trace-logs-launcher/range`,
       {
-        params: { startDate, endDate, limit, appName },
+        params: { startDate, endDate, limit, appName, logType },
       }
     );
     return response.data;

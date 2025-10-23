@@ -5,9 +5,14 @@ import { usePathname } from "next/navigation";
 
 const menuItems = [
   {
-    name: "로그",
+    name: "런처 로그",
     href: "/logs",
     icon: "📋",
+  },
+  {
+    name: "사용자 로그",
+    href: "/user-logs",
+    icon: "👤",
   },
   {
     name: "에러로그",

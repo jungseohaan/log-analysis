@@ -11,40 +11,77 @@ export default function LogsPage() {
   const [limit, setLimit] = useState<100 | 200 | 300 | 1000>(100);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [appName, setAppName] = useState<string>("all");
+  const [logType, setLogType] = useState<string>("all");
   const [selectedLog, setSelectedLog] = useState<TraceLog | null>(null);
+  const [currentLogs, setCurrentLogs] = useState<TraceLog[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // 최근 로그 조회
   const recentQuery = useQuery({
-    queryKey: ["trace-logs-launcher", "recent", limit, appName],
+    queryKey: ["trace-logs-launcher", "recent"],
     queryFn: () => traceLogsApi.getRecentLogs({
       limit,
-      appName: appName === "all" ? undefined : appName,
+      logType: logType === "all" ? undefined : logType,
     }),
-    enabled: queryType === "recent",
+    enabled: false, // 수동 조회만 가능
+    gcTime: 0, // 캐시 비활성화
+    staleTime: 0, // 항상 fresh하지 않은 상태로 유지
   });
 
   // 날짜 범위 로그 조회
   const rangeQuery = useQuery({
-    queryKey: ["trace-logs-launcher", "range", startDate, endDate, limit, appName],
+    queryKey: ["trace-logs-launcher", "range"],
     queryFn: () =>
       traceLogsApi.getLogsByDateRange({
         startDate: new Date(startDate).toISOString(),
         endDate: new Date(endDate).toISOString(),
         limit,
-        appName: appName === "all" ? undefined : appName,
+        logType: logType === "all" ? undefined : logType,
       }),
-    enabled: queryType === "range" && !!startDate && !!endDate,
+    enabled: false, // 수동 조회만 가능
+    gcTime: 0, // 캐시 비활성화
+    staleTime: 0, // 항상 fresh하지 않은 상태로 유지
   });
 
   const currentQuery = queryType === "recent" ? recentQuery : rangeQuery;
-  const logs = currentQuery.data || [];
 
-  const handleSearch = () => {
-    if (queryType === "recent") {
-      recentQuery.refetch();
-    } else {
-      rangeQuery.refetch();
+  const handleSearch = async () => {
+    // 이전 요청이 있으면 취소
+    if (abortController) {
+      abortController.abort();
+    }
+
+    const controller = new AbortController();
+    setAbortController(controller);
+    setIsSearching(true);
+
+    try {
+      const result = queryType === "recent"
+        ? await recentQuery.refetch()
+        : await rangeQuery.refetch();
+
+      if (result.data && !controller.signal.aborted) {
+        setCurrentLogs(result.data);
+      }
+    } catch (error) {
+      // 취소된 경우는 에러를 무시
+      if (!controller.signal.aborted) {
+        console.error("Search error:", error);
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsSearching(false);
+        setAbortController(null);
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setIsSearching(false);
     }
   };
 
@@ -74,7 +111,7 @@ export default function LogsPage() {
         {/* 헤더 */}
         <div className="border-b border-gray-200 bg-white p-6">
           <h1 className="mb-4 text-2xl font-bold text-gray-900">
-            로그분석 (LOG ANALYSIS)
+            런처 로그분석 (LAUNCHER LOG ANALYSIS)
           </h1>
 
           {/* 조회 타입 선택 */}
@@ -129,20 +166,20 @@ export default function LogsPage() {
             </div>
           )}
 
-          {/* appName 필터 */}
+          {/* logType 필터 */}
           <div className="mb-4 flex items-center gap-4">
-            <label className="font-medium text-gray-700">App Name:</label>
+            <label className="font-medium text-gray-700">Log Type:</label>
             <select
-              value={appName}
-              onChange={(e) => setAppName(e.target.value)}
+              value={logType}
+              onChange={(e) => setLogType(e.target.value)}
               className="rounded-md border border-gray-300 px-3 py-2"
             >
               <option value="all">All</option>
-              <option value="vlmsapi">vlmsapi</option>
-              <option value="socket">socket</option>
-              <option value="lcmsapi">lcmsapi</option>
-              <option value="tool">tool</option>
-              <option value="VIEWER">VIEWER</option>
+              <option value="debug">debug</option>
+              <option value="ack">ack</option>
+              <option value="stats">stats</option>
+              <option value="error">error</option>
+              <option value="event">event</option>
             </select>
           </div>
 
@@ -159,38 +196,52 @@ export default function LogsPage() {
               <option value={300}>300</option>
               <option value={1000}>1000</option>
             </select>
-            <button
-              onClick={handleSearch}
-              disabled={
-                currentQuery.isFetching ||
-                (queryType === "range" && (!startDate || !endDate))
-              }
-              className="rounded-md bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700 disabled:bg-gray-300"
-            >
-              {currentQuery.isFetching ? "조회 중..." : "조회"}
-            </button>
+            {!isSearching ? (
+              <button
+                onClick={handleSearch}
+                disabled={queryType === "range" && (!startDate || !endDate)}
+                className="rounded-md bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700 disabled:bg-gray-300"
+              >
+                조회
+              </button>
+            ) : (
+              <button
+                onClick={handleCancel}
+                className="rounded-md bg-red-600 px-6 py-2 text-white transition hover:bg-red-700"
+              >
+                취소
+              </button>
+            )}
           </div>
+
+          {/* 로딩 바 */}
+          {isSearching && (
+            <div className="mb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 animate-pulse bg-blue-600 rounded-full w-full"></div>
+                </div>
+                <span className="text-sm text-gray-600">조회 중...</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 로그 목록 */}
         <div className="flex-1 overflow-auto bg-gray-50 p-4">
-          {currentQuery.isLoading ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-gray-500">로딩 중...</div>
-            </div>
-          ) : currentQuery.isError ? (
+          {currentQuery.isError ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-red-500">
                 오류가 발생했습니다: {String(currentQuery.error)}
               </div>
             </div>
-          ) : logs.length === 0 ? (
+          ) : currentLogs.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="text-gray-500">조회된 로그가 없습니다</div>
             </div>
           ) : (
             <div className="space-y-2">
-              {logs.map((log) => (
+              {currentLogs.map((log) => (
                 <div
                   key={log.id}
                   onClick={() => setSelectedLog(log)}
@@ -215,9 +266,9 @@ export default function LogsPage() {
               ))}
             </div>
           )}
-          {logs.length > 0 && (
+          {currentLogs.length > 0 && (
             <div className="mt-4 text-center text-sm text-gray-500">
-              총 {logs.length}개의 로그
+              총 {currentLogs.length}개의 로그
             </div>
           )}
         </div>
