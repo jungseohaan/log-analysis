@@ -1,5 +1,7 @@
 package com.visang.tutor.demo.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.visang.tutor.demo.model.TraceLog;
 import com.visang.tutor.demo.repository.TraceLogRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class TraceLogService {
@@ -132,5 +135,32 @@ public class TraceLogService {
     public List<TraceLog> getLogsByDateRangeAndEvtCd(OffsetDateTime startDate, OffsetDateTime endDate, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         return traceLogRepository.findByDateBetweenAndEvtCd(startDate, endDate, pageable);
+    }
+
+    /**
+     * profile 필드로 로그 필터링 (메모리에서 처리)
+     * @param logs 필터링할 로그 리스트
+     * @param profile 필터링할 profile 값
+     * @return 필터링된 TraceLog 리스트
+     */
+    public List<TraceLog> filterByProfile(List<TraceLog> logs, String profile) {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        return logs.stream()
+                .filter(log -> {
+                    try {
+                        JsonNode jsonNode = objectMapper.readTree(log.getLogPayload());
+                        JsonNode profileNode = jsonNode.get("profile");
+
+                        if (profileNode != null && profileNode.isTextual()) {
+                            String logProfile = profileNode.asText();
+                            return profile.equalsIgnoreCase(logProfile);
+                        }
+                        return false;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .collect(Collectors.toList());
     }
 }
