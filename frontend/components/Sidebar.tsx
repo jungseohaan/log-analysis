@@ -19,6 +19,11 @@ const menuItems = [
     href: "/error-logs",
     icon: "⚠️",
   },
+  {
+    name: "챗봇",
+    href: "/chatbot",
+    icon: "💬",
+  },
 ];
 
 export default function Sidebar() {
