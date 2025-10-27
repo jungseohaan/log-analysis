@@ -54,4 +54,31 @@ public interface RefinedErrorLogRepository extends JpaRepository<RefinedErrorLog
             @Param("appName") String appName,
             Pageable pageable
     );
+
+    /**
+     * 필터 조건에 따른 에러 로그 전체 개수 조회
+     */
+    @Query("SELECT COUNT(r) FROM RefinedErrorLog r WHERE " +
+           "r.createdAt >= :startDate AND r.createdAt <= :endDate " +
+           "AND (:profile IS NULL OR r.profile = :profile) " +
+           "AND (:appName IS NULL OR r.appName = :appName)")
+    long countByFilters(
+            @Param("startDate") OffsetDateTime startDate,
+            @Param("endDate") OffsetDateTime endDate,
+            @Param("profile") String profile,
+            @Param("appName") String appName
+    );
+
+    /**
+     * 최근 시간 기준으로 에러 로그 전체 개수 조회
+     */
+    @Query("SELECT COUNT(r) FROM RefinedErrorLog r WHERE " +
+           "r.createdAt >= :startTime " +
+           "AND (:profile IS NULL OR r.profile = :profile) " +
+           "AND (:appName IS NULL OR r.appName = :appName)")
+    long countRecentByFilters(
+            @Param("startTime") OffsetDateTime startTime,
+            @Param("profile") String profile,
+            @Param("appName") String appName
+    );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { traceLogsApi, type TraceLog } from "@/lib/api/trace-logs";
 import { getEvtCdDescription } from "@/lib/evtCdMapping";
 import { summarizeLogs } from "@/lib/openai";
@@ -9,6 +10,7 @@ import { summarizeLogs } from "@/lib/openai";
 type QueryType = "recent" | "range";
 
 export default function LogsPage() {
+  const router = useRouter();
   const [queryType, setQueryType] = useState<QueryType>("recent");
   const [limit, setLimit] = useState<100 | 200 | 300 | 1000>(100);
   const [startDate, setStartDate] = useState("");
@@ -24,7 +26,7 @@ export default function LogsPage() {
   const [summaryError, setSummaryError] = useState<string>("");
   const [tokenCount, setTokenCount] = useState<number>(0);
 
-  // 최근 로그 조회 - 1분마다 자동 갱신
+  // 최근 로그 조회 - 자동 조회 및 1분마다 자동 갱신
   const recentQuery = useQuery({
     queryKey: ["trace-logs-launcher", "recent", limit, logType, profile],
     queryFn: async () => {
@@ -36,7 +38,7 @@ export default function LogsPage() {
       setLastUpdated(new Date());
       return data;
     },
-    enabled: queryType === "recent", // recent 모드일 때만 활성화
+    enabled: queryType === "recent", // recent 모드일 때 자동 조회
     refetchInterval: enableAutoRefresh && queryType === "recent" ? 60000 : false, // 1분마다
     refetchIntervalInBackground: false, // 백그라운드 탭에서는 폴링 중지
     gcTime: 0,
@@ -211,6 +213,17 @@ export default function LogsPage() {
     const evtCdDescription = evtCd ? getEvtCdDescription(evtCd) : "";
 
     return `${schlNum} ${uName} ${uType}${evtCdDescription ? " : " + evtCdDescription : ""}`.trim();
+  };
+
+  // UUID 클릭 시 사용자 로그 페이지로 이동 (생성 시간 포함)
+  const handleUuidClick = (uuid: string, createdAt: string) => {
+    if (uuid) {
+      const params = new URLSearchParams({
+        uuid: uuid,
+        timestamp: createdAt,
+      });
+      router.push(`/user-logs?${params.toString()}`);
+    }
   };
 
   return (
@@ -635,6 +648,30 @@ export default function LogsPage() {
                   {formatDate(selectedLog.createdAt)}
                 </div>
               </div>
+              {(() => {
+                try {
+                  const payload = JSON.parse(selectedLog.logPayload);
+                  const uuid = payload.uuid;
+                  if (uuid) {
+                    return (
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                          UUID
+                        </label>
+                        <div
+                          onClick={() => handleUuidClick(uuid, selectedLog.createdAt)}
+                          className="rounded-md bg-white p-3 font-mono text-sm text-blue-600 hover:text-blue-800 cursor-pointer hover:bg-blue-50 transition-colors"
+                          title="클릭하여 사용자 로그 조회"
+                        >
+                          {uuid}
+                        </div>
+                      </div>
+                    );
+                  }
+                } catch {
+                  return null;
+                }
+              })()}
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Log Payload (JSON)

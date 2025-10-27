@@ -1,22 +1,22 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: demo-postgres
-    environment:
-      POSTGRES_USER: vsncpdba
-      POSTGRES_PASSWORD: Qltkdelql!12
-      POSTGRES_DB: loki_logs
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vsncpdba -d loki_logs"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # postgres:
+  #   image: postgres:16
+  #   container_name: demo-postgres
+  #   environment:
+  #     POSTGRES_USER: vsncpdba
+  #     POSTGRES_PASSWORD: Qltkdelql!12
+  #     POSTGRES_DB: loki_logs
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U vsncpdba -d loki_logs"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   backend:
     build: ./backend

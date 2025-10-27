@@ -60,4 +60,34 @@ public class RefinedErrorLogService {
         Pageable pageable = PageRequest.of(0, limit);
         return refinedErrorLogRepository.findRecentByFilters(startTime, profileFilter, appNameFilter, pageable);
     }
+
+    /**
+     * 날짜 구간과 필터로 전체 에러 로그 개수 조회
+     */
+    public long countByFilters(
+            OffsetDateTime startDate,
+            OffsetDateTime endDate,
+            String profile,
+            String appName) {
+
+        String profileFilter = (profile == null || "all".equalsIgnoreCase(profile)) ? null : profile;
+        String appNameFilter = (appName == null || "all".equalsIgnoreCase(appName)) ? null : appName;
+
+        return refinedErrorLogRepository.countByFilters(startDate, endDate, profileFilter, appNameFilter);
+    }
+
+    /**
+     * 최근 시간 기준으로 전체 에러 로그 개수 조회
+     */
+    public long countRecentByFilters(
+            int minutes,
+            String profile,
+            String appName) {
+
+        OffsetDateTime startTime = OffsetDateTime.now().minusMinutes(minutes);
+        String profileFilter = (profile == null || "all".equalsIgnoreCase(profile)) ? null : profile;
+        String appNameFilter = (appName == null || "all".equalsIgnoreCase(appName)) ? null : appName;
+
+        return refinedErrorLogRepository.countRecentByFilters(startTime, profileFilter, appNameFilter);
+    }
 }

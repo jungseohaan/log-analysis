@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { userLogsApi, type TraceLog } from "@/lib/api/user-logs";
 
 type QueryType = "recent" | "range";
 
 export default function UserLogsPage() {
+  const searchParams = useSearchParams();
+
   // 필터 타입: "recent" 또는 "range"
   const [queryType, setQueryType] = useState<QueryType>("recent");
 
@@ -17,7 +20,7 @@ export default function UserLogsPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
-  // UUID 검색
+  // UUID 검색 (URL 파라미터에서 초기값 가져오기)
   const [uuid, setUuid] = useState<string>("");
 
   // 로그 타입 필터
@@ -115,10 +118,40 @@ export default function UserLogsPage() {
     setEndDate(formatDateTime(now));
   };
 
-  // 컴포넌트 마운트 시 날짜 범위 초기화
-  useState(() => {
-    initializeDateRange();
-  });
+  // 컴포넌트 마운트 시 날짜 범위 초기화 및 URL 파라미터 처리
+  useEffect(() => {
+    const timestampParam = searchParams.get("timestamp");
+
+    if (timestampParam) {
+      // timestamp 파라미터가 있으면 날짜 범위 모드로 전환하고 시간 설정
+      setQueryType("range");
+
+      const startTime = new Date(timestampParam);
+      const endTime = new Date(startTime.getTime() + 10 * 60 * 1000); // 10분 추가
+
+      // ISO 8601 형식 (YYYY-MM-DDTHH:mm)
+      const formatDateTime = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      };
+
+      setStartDate(formatDateTime(startTime));
+      setEndDate(formatDateTime(endTime));
+    } else {
+      // timestamp 파라미터가 없으면 기본 날짜 범위 초기화
+      initializeDateRange();
+    }
+
+    // URL 파라미터에서 UUID 가져오기
+    const uuidParam = searchParams.get("uuid");
+    if (uuidParam) {
+      setUuid(uuidParam);
+    }
+  }, [searchParams]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("ko-KR", {
@@ -145,9 +178,12 @@ export default function UserLogsPage() {
       <div className="flex w-2/3 flex-col border-r border-gray-200">
         {/* 헤더 */}
         <div className="border-b border-gray-200 bg-white p-6">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900">
-            사용자 로그 (USER LOGS)
-          </h1>
+          <div className="mb-4 flex items-baseline gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">
+              사용자 로그 (USER LOGS)
+            </h1>
+            <span className="text-xs text-gray-500">from trace_log</span>
+          </div>
 
           {/* 조회 타입 선택 */}
           <div className="mb-4 flex gap-4">
@@ -175,9 +211,9 @@ export default function UserLogsPage() {
 
           {/* 최근 시간 필터 */}
           {queryType === "recent" && (
-            <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                최근 시간
+            <div className="mb-4 flex items-center gap-4">
+              <label className="font-medium text-gray-700">
+                최근 시간:
               </label>
               <select
                 value={recentMinutes}
@@ -196,45 +232,39 @@ export default function UserLogsPage() {
 
           {/* 날짜 범위 입력 */}
           {queryType === "range" && (
-            <div className="mb-4 flex gap-4">
-              <div className="flex-1">
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  시작 날짜/시간
-                </label>
-                <input
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  종료 날짜/시간
-                </label>
-                <input
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
-                />
-              </div>
+            <div className="mb-4 flex items-center gap-4">
+              <label className="font-medium text-gray-700">시작 날짜/시간:</label>
+              <input
+                type="datetime-local"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2"
+              />
+              <label className="font-medium text-gray-700">종료 날짜/시간:</label>
+              <input
+                type="datetime-local"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2"
+              />
             </div>
           )}
 
           {/* UUID 검색 */}
           <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              사용자 ID (UUID)
-            </label>
-            <input
-              type="text"
-              value={uuid}
-              onChange={(e) => setUuid(e.target.value)}
-              placeholder="UUID 입력 (비워두면 모두 조회)"
-              className="rounded-md border border-gray-300 px-3 py-2 w-96"
-            />
-            <p className="text-xs text-gray-500 mt-1">
+            <div className="flex items-center gap-4 mb-1">
+              <label className="font-medium text-gray-700">
+                사용자 ID (UUID):
+              </label>
+              <input
+                type="text"
+                value={uuid}
+                onChange={(e) => setUuid(e.target.value)}
+                placeholder="UUID 입력 (비워두면 모두 조회)"
+                className="rounded-md border border-gray-300 px-3 py-2 w-96"
+              />
+            </div>
+            <p className="text-xs text-gray-500 ml-40">
               * 앞부분 와일드카드(*) 불가, LIKE 검색 지원
             </p>
           </div>

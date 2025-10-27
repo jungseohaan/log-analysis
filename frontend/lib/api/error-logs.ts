@@ -20,6 +20,11 @@ export interface RefinedErrorLog {
   userSeCd: string;
 }
 
+export interface ErrorLogResponse {
+  logs: RefinedErrorLog[];
+  total: number;
+}
+
 export interface ErrorLogsParams {
   minutes?: number;
   profile?: string;
@@ -39,9 +44,9 @@ export const errorLogsApi = {
   /**
    * 최근 시간 기준 에러 로그 조회
    */
-  getRecentErrorLogs: async (params: ErrorLogsParams = {}): Promise<RefinedErrorLog[]> => {
+  getRecentErrorLogs: async (params: ErrorLogsParams = {}): Promise<ErrorLogResponse> => {
     const { minutes = 10, profile = "all", appName = "all", limit = 100 } = params;
-    const response = await axios.get<RefinedErrorLog[]>(
+    const response = await axios.get<ErrorLogResponse>(
       `${API_BASE_URL}/api/error-logs/recent`,
       {
         params: { minutes, profile, appName, limit },
@@ -55,9 +60,9 @@ export const errorLogsApi = {
    */
   getErrorLogsByDateRange: async (
     params: ErrorLogsRangeParams
-  ): Promise<RefinedErrorLog[]> => {
+  ): Promise<ErrorLogResponse> => {
     const { startDate, endDate, profile = "all", appName = "all", limit = 100 } = params;
-    const response = await axios.get<RefinedErrorLog[]>(
+    const response = await axios.get<ErrorLogResponse>(
       `${API_BASE_URL}/api/error-logs/range`,
       {
         params: { startDate, endDate, profile, appName, limit },

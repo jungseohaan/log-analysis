@@ -99,12 +99,13 @@ The log format is: [yyyy-MM-dd HH:mm] name userType - event description
 Note: The event description is already translated from event codes to Korean descriptions.
 
 Your summary should include:
-1. 전체 로그 개수와 시간 범위
-2. 주요 이벤트 패턴과 빈도 (이벤트 설명 기준)
-3. 사용자 활동 분석 (학생/선생님 비율)
-4. 발견된 주요 이벤트 TOP 10
+1. 전체 로그 개수와 시간 범위 (한 줄로 표시. 예: "2025년 10월 27일 09:45부터 09:55까지 (총 58개)")
+2. 주요 이벤트 패턴과 빈도 (이벤트 설명 기준. 예: "2. 주요 이벤트 패턴과 빈도)
+3. 사용자 활동 분석 (사용자 별 행동 비율)
+4. 발견된 주요 이벤트 TOP 10 (각 이벤트의 분포율을 100% 기준으로 표기. 예: "이벤트명 - XX건 (YY%)")
 5. 특이사항이나 주목할 만한 패턴
 6. 시간대별 활동 분석
+7. 이상 행동 분석(한 사용자가 잦은 로그인 시도)
 
 Be concise but informative. Use bullet points and clear structure.`;
 
@@ -114,6 +115,80 @@ Be concise but informative. Use bullet points and clear structure.`;
     const estimatedTokens = estimateTokenCount(systemPrompt) + estimateTokenCount(userPrompt);
 
     // OpenAI API 호출 - gpt-3.5-turbo가 가장 저렴함 ($0.0005 per 1K input tokens)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: userPrompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    const summary = completion.choices[0]?.message?.content || "요약을 생성할 수 없습니다.";
+
+    return { summary, tokenCount: estimatedTokens };
+  } catch (error: any) {
+    console.error("OpenAI API Error:", error);
+    return {
+      summary: "",
+      error: error.message || "요약 생성 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+export interface ErrorLogSummaryRequest {
+  logs: Array<{
+    id: number;
+    appName: string;
+    createdAt: string;
+    error: string;
+    errMsg: string;
+    userId: string;
+  }>;
+}
+
+/**
+ * OpenAI API를 사용하여 에러 로그 데이터를 요약합니다
+ */
+export async function summarizeErrorLogs(
+  request: ErrorLogSummaryRequest
+): Promise<LogSummaryResponse> {
+  try {
+    // 에러 로그 데이터를 텍스트로 변환
+    const logsText = request.logs
+      .map((log) => {
+        const time = formatTimeWithoutSeconds(log.createdAt);
+        return `[${time}] ${log.appName} - ${log.error} - ${log.errMsg}${log.userId ? ` (User: ${log.userId})` : ""}`;
+      })
+      .join("\n");
+
+    const systemPrompt = `You are an error log analysis assistant. Analyze the provided error log data and provide a comprehensive summary in Korean.
+
+The log format is: [yyyy-MM-dd HH:mm] appName - error description - error message (User: userId)
+
+Your summary should include:
+1. 전체 에러 로그 개수와 시간 범위
+2. 주요 에러 유형과 빈도 (에러 설명 기준)
+3. 앱별 에러 분포
+4. 발견된 주요 에러 TOP 10 (각 에러의 분포율을 100% 기준으로 표기. 예: "에러명 - XX건 (YY%)")
+5. 특이사항이나 주목할 만한 패턴
+6. 시간대별 에러 발생 분석
+
+Be concise but informative. Use bullet points and clear structure.`;
+
+    const userPrompt = `다음 에러 로그 데이터를 분석하고 요약해주세요:\n\n${logsText.substring(0, 100000)}`; // 토큰 제한을 위해 최대 100KB
+
+    // 토큰 수 추정
+    const estimatedTokens = estimateTokenCount(systemPrompt) + estimateTokenCount(userPrompt);
+
+    // OpenAI API 호출
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [

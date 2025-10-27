@@ -1,5 +1,6 @@
 package com.visang.tutor.demo.controller;
 
+import com.visang.tutor.demo.dto.ErrorLogResponse;
 import com.visang.tutor.demo.model.RefinedErrorLog;
 import com.visang.tutor.demo.service.RefinedErrorLogService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +32,7 @@ public class RefinedErrorLogController {
      * @return RefinedErrorLog 리스트
      */
     @GetMapping("/range")
-    public ResponseEntity<List<RefinedErrorLog>> getErrorLogsByDateRange(
+    public ResponseEntity<ErrorLogResponse> getErrorLogsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endDate,
             @RequestParam(required = false, defaultValue = "all") String profile,
@@ -45,7 +46,10 @@ public class RefinedErrorLogController {
         List<RefinedErrorLog> logs = refinedErrorLogService.getErrorLogsByDateRange(
                 startDate, endDate, profile, appName, limit
         );
-        return ResponseEntity.ok(logs);
+        long total = refinedErrorLogService.countByFilters(startDate, endDate, profile, appName);
+
+        ErrorLogResponse response = new ErrorLogResponse(logs, total);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -60,7 +64,7 @@ public class RefinedErrorLogController {
      * @return RefinedErrorLog 리스트
      */
     @GetMapping("/recent")
-    public ResponseEntity<List<RefinedErrorLog>> getRecentErrorLogs(
+    public ResponseEntity<ErrorLogResponse> getRecentErrorLogs(
             @RequestParam(defaultValue = "10") int minutes,
             @RequestParam(required = false, defaultValue = "all") String profile,
             @RequestParam(required = false, defaultValue = "all") String appName,
@@ -70,13 +74,18 @@ public class RefinedErrorLogController {
             limit = 1000;
         }
 
-        if (minutes != 10 && minutes != 30 && minutes != 60) {
+        // 추가된 시간 옵션 허용 (360, 720, 1440)
+        if (minutes != 10 && minutes != 30 && minutes != 60 &&
+            minutes != 360 && minutes != 720 && minutes != 1440) {
             return ResponseEntity.badRequest().build();
         }
 
         List<RefinedErrorLog> logs = refinedErrorLogService.getRecentErrorLogs(
                 minutes, profile, appName, limit
         );
-        return ResponseEntity.ok(logs);
+        long total = refinedErrorLogService.countRecentByFilters(minutes, profile, appName);
+
+        ErrorLogResponse response = new ErrorLogResponse(logs, total);
+        return ResponseEntity.ok(response);
     }
 }
