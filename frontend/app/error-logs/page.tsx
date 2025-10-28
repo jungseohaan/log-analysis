@@ -339,7 +339,7 @@ export default function ErrorLogsPage() {
                         )}
                       </div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {log.errMsg || "-"}
+                        {log.message || "에러 메시지 없음"}
                       </p>
                     </div>
                     <span className="text-xs text-gray-500">
